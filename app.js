@@ -1,5 +1,5 @@
 // ============================================================
-// SPRINT VOLT — app.js
+// SPRINT VOLT — app.js (With Sidebar + Watch Page)
 // ============================================================
 
 const SUPABASE_URL = "https://kvosgbxpqnuimaievngy.supabase.co";
@@ -12,10 +12,11 @@ const statusEl   = document.getElementById("status");
 const filtersEl  = document.getElementById("filters");
 const searchEl   = document.getElementById("search");
 
-let allMovies   = [];
-let activeCategory = "all";
-let searchTerm  = "";
+let allMovies       = [];
+let activeCategory  = "all";
+let searchTerm      = "";
 
+// Initialize
 init();
 
 async function init(){
@@ -23,6 +24,7 @@ async function init(){
   await loadMovies();
 }
 
+// Load Movies from Supabase
 async function loadMovies(){
   console.log("🔍 Loading movies from Supabase...");
   
@@ -42,10 +44,44 @@ async function loadMovies(){
 
   console.log(`✅ Loaded ${data?.length || 0} movies`);
   allMovies = data || [];
+  
+  // Update total count in sidebar
+  document.getElementById("allCount").textContent = allMovies.length;
+  
+  // Build sidebar genres
+  buildSidebarGenres(allMovies);
+  
+  // Build top filters
   buildFilters(allMovies);
+  
   render();
 }
 
+// Build Sidebar Genres
+function buildSidebarGenres(movies){
+  const categories = Array.from(
+    new Set(movies.map(m => (m.category || "").trim()).filter(Boolean))
+  ).sort();
+
+  const container = document.getElementById("sidebarGenres");
+  
+  if (categories.length === 0){
+    container.innerHTML = '<p style="padding:10px 12px;color:var(--text-faint);font-size:12px;">No genres yet</p>';
+    return;
+  }
+
+  container.innerHTML = categories.map(cat => {
+    const count = movies.filter(m => (m.category || "").trim() === cat).length;
+    return `
+      <div class="genre-item" data-category="${escapeHtml(cat)}" onclick="setCategory('${escapeHtml(cat)}', this)">
+        <span>${escapeHtml(cat)}</span>
+        <span class="genre-count">${count}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+// Build Top Filter Chips
 function buildFilters(movies){
   const categories = Array.from(
     new Set(movies.map(m => (m.category || "").trim()).filter(Boolean))
@@ -56,6 +92,7 @@ function buildFilters(movies){
   categories.forEach(cat => filtersEl.appendChild(makeChip(cat, cat)));
 }
 
+// Make Filter Chip
 function makeChip(label, value){
   const btn = document.createElement("button");
   btn.className = "chip" + (value === activeCategory ? " is-active" : "");
@@ -63,17 +100,51 @@ function makeChip(label, value){
   btn.dataset.category = value;
   btn.addEventListener("click", () => {
     activeCategory = value;
+    // Update sidebar active state
+    document.querySelectorAll('.sidebar .genre-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.category === value);
+    });
+    // Update top chips
     [...filtersEl.children].forEach(c => c.classList.toggle("is-active", c.dataset.category === value));
     render();
   });
   return btn;
 }
 
+// Set Category (from sidebar)
+function setCategory(category, element){
+  activeCategory = category;
+  
+  // Update sidebar active
+  document.querySelectorAll('.sidebar .genre-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  if (element) element.classList.add('active');
+  
+  // Update top chips
+  [...filtersEl.children].forEach(c => c.classList.toggle("is-active", c.dataset.category === category));
+  
+  render();
+  
+  // Close sidebar on mobile
+  if (window.innerWidth <= 768){
+    toggleSidebar();
+  }
+}
+
+// Toggle Sidebar (mobile)
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('show');
+}
+
+// Search Input Handler
 searchEl.addEventListener("input", (e) => {
   searchTerm = e.target.value.trim().toLowerCase();
   render();
 });
 
+// Render Movies
 function render(){
   const filtered = allMovies.filter(m => {
     const matchesCategory = activeCategory === "all" || (m.category || "") === activeCategory;
@@ -95,29 +166,24 @@ function render(){
   hideStatus();
   moviesEl.innerHTML = filtered.map((movie, i) => cardTemplate(movie, i)).join("");
 
+  // Add click handlers to cards
   moviesEl.querySelectorAll(".card").forEach(card => {
     card.addEventListener("click", () => {
-      const movie = allMovies.find(m => m.id === Number(card.dataset.id));
-      if (movie && movie.video_link) {
-        window.open(movie.video_link, "_blank");
-      } else {
-        // fallback: go to watch page if exists
-        location.href = `watch.html?id=${card.dataset.id}`;
-      }
+      const movieId = card.dataset.id;
+      location.href = `watch.html?id=${movieId}`;
     });
   });
 }
 
+// Card Template
 function cardTemplate(movie, index){
-  const title = escapeHtml(movie.title || "Untitled");
-  const desc  = escapeHtml(movie.description || "");
-  const cat   = escapeHtml(movie.category || "");
-  const thumb = movie.thumbnail || "";
+  const title    = escapeHtml(movie.title || "Untitled");
+  const desc     = escapeHtml(movie.description || "");
+  const cat      = escapeHtml(movie.category || "");
+  const thumb    = movie.thumbnail || "";
   const hasThumb = thumb && thumb.trim() !== "";
-  const delay = Math.min(index * 0.04, 0.4);
-
-  // Generate initial for placeholder
-  const initial = title.charAt(0).toUpperCase();
+  const delay    = Math.min(index * 0.04, 0.4);
+  const initial  = title.charAt(0).toUpperCase();
 
   return `
     <div class="card" data-id="${movie.id}" style="animation-delay:${delay}s">
@@ -148,11 +214,7 @@ function cardTemplate(movie, index){
   `;
 }
 
-function watchMovie(url){
-  if (!url) return;
-  window.open(url, "_blank");
-}
-
+// Skeleton Loading
 function renderSkeletons(count){
   hideStatus();
   moviesEl.innerHTML = Array.from({ length: count }).map(() => `
@@ -166,16 +228,19 @@ function renderSkeletons(count){
   `).join("");
 }
 
+// Show Status Message
 function showStatus(title, body){
   statusEl.classList.add("is-visible");
   statusEl.innerHTML = `<div class="status-title">${escapeHtml(title)}</div><div>${escapeHtml(body)}</div>`;
 }
 
+// Hide Status
 function hideStatus(){
   statusEl.classList.remove("is-visible");
   statusEl.innerHTML = "";
 }
 
+// Escape HTML
 function escapeHtml(str){
   const div = document.createElement("div");
   div.textContent = str;
