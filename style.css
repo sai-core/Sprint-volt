@@ -521,4 +521,4 @@ main{ position:relative; z-index:1; }
 
 @media (max-width: 640px){
   .player-frame{ border-radius:10px; }
-     }
+}
