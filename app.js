@@ -89,11 +89,13 @@ function render(){
   moviesEl.innerHTML = filtered.map((movie, i) => cardTemplate(movie, i)).join("");
 
   moviesEl.querySelectorAll(".card").forEach(card => {
-    card.addEventListener("click", () => {
-      location.href = `watch.html?id=${card.dataset.id}`;
-    });
+  card.addEventListener("click", () => {
+    const link = card.dataset.link;
+    if (link) {
+      window.open(link, "_blank");
+    }
   });
-}
+});
 
 function cardTemplate(movie, index){
   const title = escapeHtml(movie.title || "Untitled");
