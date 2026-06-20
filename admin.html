@@ -38,14 +38,14 @@ body{
   color: var(--text);
   font-family: var(--font-body);
   display:flex;
-  align-items:flex-start;
-  justify-content:center;
-  padding: 60px 20px;
+  flex-direction:column;
+  align-items:center;
+  padding: 50px 20px 80px;
 }
 
 .panel{
   width:100%;
-  max-width:480px;
+  max-width:520px;
   background: var(--glass);
   border:1px solid var(--glass-border);
   border-radius:18px;
@@ -53,6 +53,8 @@ body{
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   padding:32px;
 }
+
+.panel + .panel{ margin-top:24px; }
 
 h1{
   font-family: var(--font-display);
@@ -64,6 +66,12 @@ h1{
 }
 
 h1 .accent{ color: var(--volt); }
+
+h2{
+  font-family: var(--font-display);
+  font-size:15px;
+  margin:0 0 4px;
+}
 
 .subtitle{
   margin:0 0 28px;
@@ -106,14 +114,15 @@ input:focus, textarea:focus{
 
 textarea{ min-height:90px; resize:vertical; }
 
-button{
-  width:100%;
+.btn-row{
+  display:flex;
+  gap:10px;
   margin-top:24px;
-  padding:13px;
+}
+
+button{
   border:none;
   border-radius:10px;
-  background: var(--volt);
-  color: var(--void);
   font-family: var(--font-body);
   font-weight:600;
   font-size:14px;
@@ -121,9 +130,27 @@ button{
   transition: transform .15s var(--ease), box-shadow .25s var(--ease), opacity .2s var(--ease);
 }
 
-button:hover{ box-shadow: 0 0 22px rgba(212,255,63,0.3); }
-button:active{ transform: scale(.98); }
-button:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; }
+.btn-primary{
+  flex:1;
+  padding:13px;
+  background: var(--volt);
+  color: var(--void);
+}
+
+.btn-primary:hover{ box-shadow: 0 0 22px rgba(212,255,63,0.3); }
+.btn-primary:active{ transform: scale(.98); }
+.btn-primary:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; }
+
+.btn-cancel{
+  padding:13px 18px;
+  background: transparent;
+  border:1px solid var(--glass-border);
+  color: var(--text-dim);
+  display:none;
+}
+
+.btn-cancel.show{ display:block; }
+.btn-cancel:hover{ color: var(--text); border-color: rgba(255,255,255,0.3); }
 
 .toast{
   margin-top:16px;
@@ -136,13 +163,90 @@ button:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; }
 .toast.show{ display:block; }
 .toast.success{ background: rgba(212,255,63,0.1); border:1px solid rgba(212,255,63,0.3); color: var(--volt); }
 .toast.error{ background: rgba(255,90,90,0.1); border:1px solid rgba(255,90,90,0.3); color:#ff8b8b; }
+
+/* movie list */
+.movie-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:8px;
+  max-height:480px;
+  overflow-y:auto;
+}
+
+.movie-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:8px;
+  border-radius:12px;
+  background: rgba(255,255,255,0.03);
+  border:1px solid var(--glass-border);
+  transition: background .2s var(--ease), border-color .2s var(--ease);
+}
+
+.movie-row:hover{ background: rgba(255,255,255,0.06); }
+
+.row-thumb{
+  width:72px;
+  aspect-ratio:16/9;
+  border-radius:7px;
+  object-fit:cover;
+  background: #1a1924;
+  flex-shrink:0;
+}
+
+.row-info{ flex:1; min-width:0; }
+
+.row-title{
+  font-size:13.5px;
+  font-weight:600;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.row-cat{
+  font-size:11px;
+  color: var(--text-dim);
+  margin-top:2px;
+}
+
+.row-actions{
+  display:flex;
+  gap:6px;
+  flex-shrink:0;
+}
+
+.icon-btn{
+  width:32px;
+  height:32px;
+  border-radius:8px;
+  background: rgba(255,255,255,0.04);
+  border:1px solid var(--glass-border);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: var(--text-dim);
+  padding:0;
+}
+
+.icon-btn:hover{ color: var(--text); background: rgba(255,255,255,0.09); }
+.icon-btn.danger:hover{ color:#ff8b8b; border-color: rgba(255,90,90,0.3); background: rgba(255,90,90,0.08); }
+
+.empty-note{
+  font-size:13px;
+  color: var(--text-dim);
+  text-align:center;
+  padding:24px 0;
+}
 </style>
 </head>
 <body>
 
 <div class="panel">
   <h1>⚡ SPRINT <span class="accent">VOLT</span></h1>
-  <p class="subtitle">Admin — add a new title to the catalog</p>
+  <p class="subtitle" id="formSubtitle">Admin — add a new title to the catalog</p>
 
   <label for="title">Movie title</label>
   <input type="text" id="title" placeholder="e.g. Midnight Run">
@@ -159,9 +263,18 @@ button:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; }
   <label for="description">Description</label>
   <textarea id="description" placeholder="Short synopsis…"></textarea>
 
-  <button id="submitBtn" onclick="addMovie()">Add Movie</button>
+  <div class="btn-row">
+    <button class="btn-primary" id="submitBtn" onclick="saveMovie()">Add Movie</button>
+    <button class="btn-cancel" id="cancelBtn" onclick="cancelEdit()">Cancel</button>
+  </div>
 
   <div id="toast" class="toast"></div>
+</div>
+
+<div class="panel">
+  <h2>Manage movies</h2>
+  <p class="subtitle">Edit or remove titles already in the catalog</p>
+  <div id="movieList" class="movie-list"></div>
 </div>
 
 <script>
@@ -170,10 +283,96 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const submitBtn = document.getElementById("submitBtn");
-const toast = document.getElementById("toast");
+const submitBtn   = document.getElementById("submitBtn");
+const cancelBtn   = document.getElementById("cancelBtn");
+const toast       = document.getElementById("toast");
+const formSubtitle= document.getElementById("formSubtitle");
+const movieListEl = document.getElementById("movieList");
 
-async function addMovie(){
+const fields = ["title","thumbnail","video","category","description"];
+let editingId = null;
+let currentMovies = [];
+
+loadMovieList();
+
+async function loadMovieList(){
+  movieListEl.innerHTML = `<p class="empty-note">Loading…</p>`;
+
+  const { data, error } = await supabaseClient
+    .from("videos")
+    .select("*")
+    .order("id", { ascending: false });
+
+  if (error){
+    movieListEl.innerHTML = `<p class="empty-note">Couldn't load movies: ${escapeHtml(error.message)}</p>`;
+    return;
+  }
+
+  currentMovies = data || [];
+
+  if (currentMovies.length === 0){
+    movieListEl.innerHTML = `<p class="empty-note">No movies added yet.</p>`;
+    return;
+  }
+
+  movieListEl.innerHTML = currentMovies.map(rowTemplate).join("");
+
+  movieListEl.querySelectorAll(".icon-btn.edit").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const movie = currentMovies.find(m => m.id === Number(btn.dataset.id));
+      if (movie) startEdit(movie);
+    });
+  });
+
+  movieListEl.querySelectorAll(".icon-btn.danger").forEach(btn => {
+    btn.addEventListener("click", () => deleteMovie(Number(btn.dataset.id)));
+  });
+}
+
+function rowTemplate(movie){
+  const thumb = movie.thumbnail || "";
+  return `
+    <div class="movie-row">
+      <img class="row-thumb" src="${thumb}" onerror="this.style.opacity=0">
+      <div class="row-info">
+        <div class="row-title">${escapeHtml(movie.title || "Untitled")}</div>
+        <div class="row-cat">${escapeHtml(movie.category || "")}</div>
+      </div>
+      <div class="row-actions">
+        <button class="icon-btn edit" title="Edit" data-id="${movie.id}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+        </button>
+        <button class="icon-btn danger" title="Delete" data-id="${movie.id}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function startEdit(movie){
+  editingId = movie.id;
+  document.getElementById("title").value       = movie.title || "";
+  document.getElementById("thumbnail").value   = movie.thumbnail || "";
+  document.getElementById("video").value       = movie.video_link || "";
+  document.getElementById("category").value    = movie.category || "";
+  document.getElementById("description").value = movie.description || "";
+
+  formSubtitle.textContent = `Editing "${movie.title}"`;
+  submitBtn.textContent = "Update Movie";
+  cancelBtn.classList.add("show");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelEdit(){
+  editingId = null;
+  fields.forEach(id => document.getElementById(id).value = "");
+  formSubtitle.textContent = "Admin — add a new title to the catalog";
+  submitBtn.textContent = "Add Movie";
+  cancelBtn.classList.remove("show");
+}
+
+async function saveMovie(){
   const title       = document.getElementById("title").value.trim();
   const thumbnail   = document.getElementById("thumbnail").value.trim();
   const video       = document.getElementById("video").value.trim();
@@ -186,30 +385,52 @@ async function addMovie(){
   }
 
   submitBtn.disabled = true;
-  submitBtn.textContent = "Adding…";
+  submitBtn.textContent = editingId ? "Updating…" : "Adding…";
 
-  const { error } = await supabaseClient
-    .from("videos")
-    .insert([{ title, thumbnail, video_link: video, category, description }]);
+  const payload = { title, thumbnail, video_link: video, category, description };
+
+  const { error } = editingId
+    ? await supabaseClient.from("videos").update(payload).eq("id", editingId)
+    : await supabaseClient.from("videos").insert([payload]);
 
   submitBtn.disabled = false;
-  submitBtn.textContent = "Add Movie";
+
+  if (error){
+    submitBtn.textContent = editingId ? "Update Movie" : "Add Movie";
+    showToast(error.message, "error");
+    return;
+  }
+
+  showToast(editingId ? "Movie updated successfully" : "Movie added successfully", "success");
+  cancelEdit();
+  loadMovieList();
+}
+
+async function deleteMovie(id){
+  if (!confirm("Delete this movie? This can't be undone.")) return;
+
+  const { error } = await supabaseClient.from("videos").delete().eq("id", id);
 
   if (error){
     showToast(error.message, "error");
     return;
   }
 
-  showToast("Movie added successfully", "success");
-  ["title","thumbnail","video","category","description"].forEach(id => {
-    document.getElementById(id).value = "";
-  });
+  showToast("Movie deleted", "success");
+  if (editingId === id) cancelEdit();
+  loadMovieList();
 }
 
 function showToast(message, type){
   toast.textContent = message;
   toast.className = `toast show ${type}`;
   setTimeout(() => toast.classList.remove("show"), 3500);
+}
+
+function escapeHtml(str){
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
 }
 </script>
 </body>
