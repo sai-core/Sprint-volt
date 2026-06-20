@@ -1,50 +1,157 @@
-const SUPABASE_URL = "https://kvosgbxpqnuimaievngy.supabase.co";
+// ============================================================
+// SPRINT VOLT — app.js
+// ============================================================
 
+const SUPABASE_URL = "https://kvosgbxpqnuimaievngy.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2b3NnYnhwcW51aW1haWV2bmd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDAxMDUsImV4cCI6MjA5NzUxNjEwNX0.4xyHmpouSbWvZSD5z0mDhvf175S_dubHTBbMvojJRqE";
 
-const supabaseClient = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-loadMovies();
+const moviesEl   = document.getElementById("movies");
+const statusEl   = document.getElementById("status");
+const filtersEl  = document.getElementById("filters");
+const searchEl   = document.getElementById("search");
+
+let allMovies   = [];
+let activeCategory = "all";
+let searchTerm  = "";
+
+init();
+
+async function init(){
+  renderSkeletons(8);
+  await loadMovies();
+}
 
 async function loadMovies(){
-
   const { data, error } = await supabaseClient
-  .from("videos")
-  .select("*")
-  .order("id",{ascending:false});
+    .from("videos")
+    .select("*")
+    .order("id", { ascending: false });
 
-  if(error){
-    console.log(error);
+  if (error){
+    console.error(error);
+    showStatus("Couldn't load the catalog", error.message || "Check your Supabase URL and key, then refresh.");
+    moviesEl.innerHTML = "";
     return;
   }
 
-  const movies = document.getElementById("movies");
+  allMovies = data || [];
+  buildFilters(allMovies);
+  render();
+}
 
-  movies.innerHTML = "";
+function buildFilters(movies){
+  const categories = Array.from(
+    new Set(movies.map(m => (m.category || "").trim()).filter(Boolean))
+  ).sort();
 
-  data.forEach(movie=>{
+  filtersEl.innerHTML = "";
+  filtersEl.appendChild(makeChip("All", "all"));
+  categories.forEach(cat => filtersEl.appendChild(makeChip(cat, cat)));
+}
 
-    movies.innerHTML += `
-    <div class="card">
+function makeChip(label, value){
+  const btn = document.createElement("button");
+  btn.className = "chip" + (value === activeCategory ? " is-active" : "");
+  btn.textContent = label;
+  btn.dataset.category = value;
+  btn.addEventListener("click", () => {
+    activeCategory = value;
+    [...filtersEl.children].forEach(c => c.classList.toggle("is-active", c.dataset.category === value));
+    render();
+  });
+  return btn;
+}
 
-      <img src="${movie.thumbnail}">
+searchEl.addEventListener("input", (e) => {
+  searchTerm = e.target.value.trim().toLowerCase();
+  render();
+});
 
-      <h3>${movie.title}</h3>
-
-      <button onclick="watchMovie('${movie.video_link}')">
-      Watch Now
-      </button>
-
-    </div>
-    `;
-
+function render(){
+  const filtered = allMovies.filter(m => {
+    const matchesCategory = activeCategory === "all" || (m.category || "") === activeCategory;
+    const matchesSearch = !searchTerm || (m.title || "").toLowerCase().includes(searchTerm);
+    return matchesCategory && matchesSearch;
   });
 
+  if (filtered.length === 0){
+    moviesEl.innerHTML = "";
+    showStatus(
+      allMovies.length === 0 ? "No movies yet" : "No matches",
+      allMovies.length === 0 ? "Add a movie from the admin panel to get started." : "Try a different title or category."
+    );
+    return;
+  }
+
+  hideStatus();
+  moviesEl.innerHTML = filtered.map((movie, i) => cardTemplate(movie, i)).join("");
+
+  moviesEl.querySelectorAll(".card").forEach(card => {
+    card.addEventListener("click", () => watchMovie(card.dataset.link));
+  });
+}
+
+function cardTemplate(movie, index){
+  const title = escapeHtml(movie.title || "Untitled");
+  const desc  = escapeHtml(movie.description || "");
+  const cat   = escapeHtml(movie.category || "");
+  const thumb = movie.thumbnail || "";
+  const link  = (movie.video_link || "").replace(/"/g, "&quot;");
+  const delay = Math.min(index * 0.04, 0.4);
+
+  return `
+    <div class="card" data-link="${link}" style="animation-delay:${delay}s">
+      <div class="poster-wrap">
+        ${cat ? `<span class="category-badge">${cat}</span>` : ""}
+        <img src="${thumb}" alt="${title}" loading="lazy" onerror="this.style.opacity=0">
+        <div class="play-overlay">
+          <button class="play-btn" aria-label="Watch ${title}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#0a0a12">
+              <path d="M8 5v14l11-7z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">${title}</h3>
+        ${desc ? `<p class="card-desc">${desc}</p>` : ""}
+      </div>
+    </div>
+  `;
 }
 
 function watchMovie(url){
-  window.open(url,"_blank");
+  if (!url) return;
+  window.open(url, "_blank");
 }
+
+function renderSkeletons(count){
+  hideStatus();
+  moviesEl.innerHTML = Array.from({ length: count }).map(() => `
+    <div class="skeleton">
+      <div class="poster-wrap"></div>
+      <div class="card-info">
+        <div class="bar"></div>
+        <div class="bar"></div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function showStatus(title, body){
+  statusEl.classList.add("is-visible");
+  statusEl.innerHTML = `<div class="status-title">${escapeHtml(title)}</div><div>${escapeHtml(body)}</div>`;
+}
+
+function hideStatus(){
+  statusEl.classList.remove("is-visible");
+  statusEl.innerHTML = "";
+}
+
+function escapeHtml(str){
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+    }
