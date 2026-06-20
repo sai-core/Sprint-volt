@@ -89,7 +89,9 @@ function render(){
   moviesEl.innerHTML = filtered.map((movie, i) => cardTemplate(movie, i)).join("");
 
   moviesEl.querySelectorAll(".card").forEach(card => {
-    card.addEventListener("click", () => watchMovie(card.dataset.link));
+    card.addEventListener("click", () => {
+      location.href = `watch.html?id=${card.dataset.id}`;
+    });
   });
 }
 
@@ -98,11 +100,10 @@ function cardTemplate(movie, index){
   const desc  = escapeHtml(movie.description || "");
   const cat   = escapeHtml(movie.category || "");
   const thumb = movie.thumbnail || "";
-  const link  = (movie.video_link || "").replace(/"/g, "&quot;");
   const delay = Math.min(index * 0.04, 0.4);
 
   return `
-    <div class="card" data-link="${link}" style="animation-delay:${delay}s">
+    <div class="card" data-id="${movie.id}" style="animation-delay:${delay}s">
       <div class="poster-wrap">
         ${cat ? `<span class="category-badge">${cat}</span>` : ""}
         <img src="${thumb}" alt="${title}" loading="lazy" onerror="this.style.opacity=0">
@@ -154,4 +155,4 @@ function escapeHtml(str){
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
-    }
+}
