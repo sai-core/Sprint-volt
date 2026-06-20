@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPRINT VOLT ADMIN</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body{
+background:#111;
+color:white;
+font-family:Arial;
+padding:20px;
+}
+
+input,textarea{
+width:100%;
+padding:10px;
+margin:10px 0;
+}
+
+button{
+padding:10px 20px;
+cursor:pointer;
+}
+</style>
+
+</head>
+<body>
+
+<h1>⚡ SPRINT VOLT ADMIN</h1>
+
+<input type="text" id="title" placeholder="Movie Title">
+
+<input type="text" id="thumbnail" placeholder="Thumbnail URL">
+
+<input type="text" id="video" placeholder="Video Link">
+
+<input type="text" id="category" placeholder="Category">
+
+<textarea id="description" placeholder="Description"></textarea>
+
+<button onclick="addMovie()">Add Movie</button>
+
+<script>
+
+const SUPABASE_URL = "https://kvosgbxpqnuimaievngy.supabase.co/rest/v1/";
+
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2b3NnYnhwcW51aW1haWV2bmd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDAxMDUsImV4cCI6MjA5NzUxNjEwNX0.4xyHmpouSbWvZSD5z0mDhvf175S_dubHTBbMvojJRqE";
+
+const supabaseClient = supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
+
+async function addMovie(){
+
+const title =
+document.getElementById("title").value;
+
+const thumbnail =
+document.getElementById("thumbnail").value;
+
+const video =
+document.getElementById("video").value;
+
+const category =
+document.getElementById("category").value;
+
+const description =
+document.getElementById("description").value;
+
+const { error } = await supabaseClient
+.from("videos")
+.insert([
+{
+title:title,
+thumbnail:thumbnail,
+video_link:video,
+category:category,
+description:description
+}
+]);
+
+if(error){
+alert(error.message);
+return;
+}
+
+alert("Movie Added Successfully");
+
+}
+
+</script>
+
+</body>
+</html>
