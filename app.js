@@ -105,7 +105,7 @@ function cardTemplate(movie, index){
   const delay = Math.min(index * 0.04, 0.4);
 
   return `
-    <div class="card" data-link="${movie.video_link || ''}" style="animation-delay:${delay}s">
+    <div class="card" data-id="${movie.id}" style="animation-delay:${delay}s">
       <div class="poster-wrap">
         ${cat ? `<span class="category-badge">${cat}</span>` : ""}
         <img src="${thumb}" alt="${title}" loading="lazy" onerror="this.style.opacity=0">
