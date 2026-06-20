@@ -24,18 +24,23 @@ async function init(){
 }
 
 async function loadMovies(){
+  console.log("🔍 Loading movies from Supabase...");
+  
   const { data, error } = await supabaseClient
     .from("videos")
     .select("*")
     .order("id", { ascending: false });
 
+  console.log("📦 Raw response:", { data, error });
+
   if (error){
-    console.error(error);
+    console.error("❌ Supabase error:", error);
     showStatus("Couldn't load the catalog", error.message || "Check your Supabase URL and key, then refresh.");
     moviesEl.innerHTML = "";
     return;
   }
 
+  console.log(`✅ Loaded ${data?.length || 0} movies`);
   allMovies = data || [];
   buildFilters(allMovies);
   render();
@@ -76,6 +81,8 @@ function render(){
     return matchesCategory && matchesSearch;
   });
 
+  console.log(`🎬 Rendering ${filtered.length} movies (filtered from ${allMovies.length})`);
+
   if (filtered.length === 0){
     moviesEl.innerHTML = "";
     showStatus(
@@ -90,7 +97,13 @@ function render(){
 
   moviesEl.querySelectorAll(".card").forEach(card => {
     card.addEventListener("click", () => {
-      location.href = `watch.html?id=${card.dataset.id}`;
+      const movie = allMovies.find(m => m.id === Number(card.dataset.id));
+      if (movie && movie.video_link) {
+        window.open(movie.video_link, "_blank");
+      } else {
+        // fallback: go to watch page if exists
+        location.href = `watch.html?id=${card.dataset.id}`;
+      }
     });
   });
 }
@@ -100,13 +113,25 @@ function cardTemplate(movie, index){
   const desc  = escapeHtml(movie.description || "");
   const cat   = escapeHtml(movie.category || "");
   const thumb = movie.thumbnail || "";
+  const hasThumb = thumb && thumb.trim() !== "";
   const delay = Math.min(index * 0.04, 0.4);
+
+  // Generate initial for placeholder
+  const initial = title.charAt(0).toUpperCase();
 
   return `
     <div class="card" data-id="${movie.id}" style="animation-delay:${delay}s">
       <div class="poster-wrap">
         ${cat ? `<span class="category-badge">${cat}</span>` : ""}
-        <img src="${thumb}" alt="${title}" loading="lazy" onerror="this.style.opacity=0">
+        ${hasThumb 
+          ? `<img src="${thumb}" alt="${title}" loading="lazy" onerror="this.parentElement.classList.add('img-error')">`
+          : `<div class="poster-placeholder">
+               <span class="placeholder-initial">${initial}</span>
+               <svg class="placeholder-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                 <polygon points="5,3 19,12 5,21"></polygon>
+               </svg>
+             </div>`
+        }
         <div class="play-overlay">
           <button class="play-btn" aria-label="Watch ${title}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#0a0a12">
