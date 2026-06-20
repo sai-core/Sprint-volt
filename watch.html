@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Watch - Sprint Volt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="glow glow--a"></div>
+<div class="glow glow--b"></div>
+
+<!-- Mobile Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<div class="layout">
+  <!-- ========== SIDEBAR ========== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="bolt">⚡</span>
+      <span>SPRINT<span class="brand-accent">VOLT</span></span>
+    </div>
+
+    <div class="sidebar-section">Browse</div>
+    <a href="index.html" class="genre-item" data-category="all">
+      <span>🔥 All Movies</span>
+    </a>
+
+    <div class="sidebar-section">Genres</div>
+    <div id="sidebarGenres"></div>
+  </aside>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <main class="main-content">
+    <div class="watch-main">
+      <!-- Back Button -->
+      <a href="index.html" class="back-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to Home
+      </a>
+
+      <!-- Player -->
+      <div class="player-frame" id="playerFrame">
+        <div class="player-empty">Loading player...</div>
+      </div>
+
+      <!-- Movie Info -->
+      <div class="watch-info">
+        <h1 class="watch-title" id="watchTitle">Loading...</h1>
+        
+        <div class="watch-meta" id="watchMeta">
+          <span class="meta-badge genre" id="watchGenre">-</span>
+          <span class="meta-badge year" id="watchYear">-</span>
+          <span class="meta-badge quality">HD</span>
+        </div>
+
+        <div class="watch-actions">
+          <button class="action-btn primary" id="playBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            Play Now
+          </button>
+          <button class="action-btn secondary" id="watchLaterBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            Watch Later
+          </button>
+          <button class="action-btn secondary" id="shareBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            Share
+          </button>
+        </div>
+
+        <p class="watch-desc" id="watchDesc">Loading description...</p>
+      </div>
+
+      <!-- Related Movies -->
+      <section class="related-section">
+        <h2 class="related-heading">More Like This</h2>
+        <div class="related-grid" id="relatedGrid">
+          <!-- Related cards will be loaded here -->
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============================================================
+// WATCH PAGE - app.js
+// ============================================================
+
+const SUPABASE_URL = "https://kvosgbxpqnuimaievngy.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2b3NnYnhwcW51aW1haWV2bmd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5NDAxMDUsImV4cCI6MjA5NzUxNjEwNX0.4xyHmpouSbWvZSD5z0mDhvf175S_dubHTBbMvojJRqE";
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Get movie ID from URL
+const urlParams = new URLSearchParams(window.location.search);
+const movieId = urlParams.get('id');
+
+// Current movie data
+let currentMovie = null;
+
+// Initialize
+init();
+
+async function init(){
+  if (!movieId){
+    showError("Movie not found");
+    return;
+  }
+  await loadMovie();
+  await loadRelated();
+  await buildSidebarGenres();
+}
+
+// Load current movie
+async function loadMovie(){
+  const { data, error } = await supabaseClient
+    .from("videos")
+    .select("*")
+    .eq("id", movieId)
+    .single();
+
+  if (error || !data){
+    showError("Movie not found");
+    return;
+  }
+
+  currentMovie = data;
+  
+  // Update page title
+  document.title = `${data.title || "Movie"} - Sprint Volt`;
+  
+  // Update movie info
+  document.getElementById("watchTitle").textContent = data.title || "Untitled";
+  document.getElementById("watchGenre").textContent = data.category || "General";
+  document.getElementById("watchYear").textContent = new Date().getFullYear();
+  document.getElementById("watchDesc").textContent = data.description || "No description available.";
+  
+  // Set up player
+  const playerFrame = document.getElementById("playerFrame");
+  
+  if (data.video_link && data.video_link.trim() !== ""){
+    // Check if it's a YouTube/Vimeo link or direct video
+    if (data.video_link.includes("youtube.com") || data.video_link.includes("youtu.be")){
+      const videoId = extractYouTubeId(data.video_link);
+      playerFrame.innerHTML = `
+        <iframe 
+          src="https://www.youtube.com/embed/${videoId}?autoplay=1" 
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+          allowfullscreen>
+        </iframe>
+      `;
+    } else if (data.video_link.includes("vimeo.com")){
+      const videoId = data.video_link.split("/").pop();
+      playerFrame.innerHTML = `
+        <iframe 
+          src="https://player.vimeo.com/video/${videoId}?autoplay=1" 
+          allow="autoplay; fullscreen; picture-in-picture" 
+          allowfullscreen>
+        </iframe>
+      `;
+    } else {
+      // Direct video file
+      playerFrame.innerHTML = `
+        <video controls autoplay>
+          <source src="${data.video_link}" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      `;
+    }
+  } else {
+    playerFrame.innerHTML = '<div class="player-empty">No video link available</div>';
+  }
+  
+  // Play button
+  document.getElementById("playBtn").addEventListener("click", () => {
+    if (data.video_link){
+      window.open(data.video_link, "_blank");
+    }
+  });
+}
+
+// Load related movies
+async function loadRelated(){
+  if (!currentMovie) return;
+  
+  const { data, error } = await supabaseClient
+    .from("videos")
+    .select("*")
+    .eq("category", currentMovie.category)
+    .neq("id", currentMovie.id)
+    .limit(6);
+  
+  const container = document.getElementById("relatedGrid");
+  
+  if (error || !data || data.length === 0){
+    // Load any random movies if no same category
+    const { data: randomData } = await supabaseClient
+      .from("videos")
+      .select("*")
+      .neq("id", currentMovie.id)
+      .limit(6);
+    
+    if (randomData && randomData.length > 0){
+      container.innerHTML = randomData.map(movie => relatedCard(movie)).join("");
+    } else {
+      container.innerHTML = '<p style="color:var(--text-faint);font-size:13px;">No related movies found.</p>';
+    }
+    return;
+  }
+  
+  container.innerHTML = data.map(movie => relatedCard(movie)).join("");
+}
+
+// Related card template
+function relatedCard(movie){
+  const thumb = movie.thumbnail || "";
+  const hasThumb = thumb && thumb.trim() !== "";
+  const initial = (movie.title || "?").charAt(0).toUpperCase();
+  
+  return `
+    <a href="watch.html?id=${movie.id}" class="related-card">
+      <div class="related-poster">
+        ${hasThumb 
+          ? `<img src="${thumb}" alt="${movie.title}" loading="lazy" onerror="this.style.display='none'">`
+          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg, var(--void-2) 0%, rgba(124,92,255,0.15) 100%);font-size:24px;font-weight:700;color:var(--volt);">${initial}</div>`
+        }
+        <span class="related-duration">HD</span>
+      </div>
+      <div class="related-info">
+        <h3 class="related-title">${escapeHtml(movie.title || "Untitled")}</h3>
+        <p class="related-meta">${escapeHtml(movie.category || "General")}</p>
+      </div>
+    </a>
+  `;
+}
+
+// Build sidebar genres
+async function buildSidebarGenres(){
+  const { data } = await supabaseClient
+    .from("videos")
+    .select("category");
+  
+  if (!data) return;
+  
+  const categories = Array.from(
+    new Set(data.map(m => (m.category || "").trim()).filter(Boolean))
+  ).sort();
+  
+  const container = document.getElementById("sidebarGenres");
+  container.innerHTML = categories.map(cat => `
+    <a href="index.html" class="genre-item">
+      <span>${escapeHtml(cat)}</span>
+    </a>
+  `).join("");
+}
+
+// Toggle sidebar (mobile)
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('show');
+}
+
+// Extract YouTube video ID
+function extractYouTubeId(url){
+  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = url.match(regex);
+  return match ? match[1] : null;
+}
+
+// Show error
+function showError(message){
+  document.getElementById("watchTitle").textContent = "Error";
+  document.getElementById("watchDesc").textContent = message;
+  document.getElementById("playerFrame").innerHTML = `
+    <div class="player-empty">
+      <p>${message}</p>
+      <a href="index.html" style="color:var(--volt);margin-top:10px;display:inline-block;">← Back to Home</a>
+    </div>
+  `;
+}
+
+// Escape HTML
+function escapeHtml(str){
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
